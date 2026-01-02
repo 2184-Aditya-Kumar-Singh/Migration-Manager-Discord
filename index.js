@@ -155,7 +155,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     return interaction.reply({
       content:
-        "✅ **Bot setup completed.**\n\n" +
+        "✅ **Bot setup completed.Your subscription for next 30days is active now**\n\n" +
         "📄 Share your sheet with:\n" +
         "`migration-manager@migration-manager-483107.iam.gserviceaccount.com` (Editor)",
       ephemeral: true
