@@ -60,23 +60,54 @@ client.once(Events.ClientReady, async () => {
       .setName("setup")
       .setDescription("Setup migration bot for this server")
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .addChannelOption(o => o.setName("vote_channel").setDescription("Voting channel").setRequired(true))
-      .addChannelOption(o => o.setName("welcome_channel").setDescription("Welcome channel").setRequired(true))
-      .addRoleOption(o => o.setName("approve_role").setDescription("Approve/Reject role").setRequired(true))
-      .addChannelOption(o => o.setName("approved_category").setDescription("Approved category").setRequired(true))
-      .addChannelOption(o => o.setName("rejected_category").setDescription("Rejected category").setRequired(true))
+      .addChannelOption(o =>
+        o.setName("vote_channel")
+         .setDescription("Voting channel")
+         .setRequired(true)
+      )
+      .addChannelOption(o =>
+        o.setName("welcome_channel")
+         .setDescription("Welcome channel")
+         .setRequired(true)
+      )
+      .addRoleOption(o =>
+        o.setName("approve_role")
+         .setDescription("Migration management role")
+         .setRequired(true)
+      )
+      .addChannelOption(o =>
+        o.setName("approved_category")
+         .setDescription("Approved tickets category")
+         .setRequired(true)
+      )
+      .addChannelOption(o =>
+        o.setName("rejected_category")
+         .setDescription("Rejected tickets category")
+         .setRequired(true)
+      )
       .addStringOption(o =>
         o.setName("sheet_id")
-         .setDescription("Google Sheet ID (Share with migration-manager@migration-manager-483107.iam.gserviceaccount.com)")
+         .setDescription(
+           "Google Sheet ID (share with migration-manager@migration-manager-483107.iam.gserviceaccount.com)"
+         )
          .setRequired(true)
       ),
 
-    new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
-    new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
+    new SlashCommandBuilder()
+      .setName("fill-details")
+      .setDescription("Fill migration details"),
+
+    new SlashCommandBuilder()
+      .setName("approve")
+      .setDescription("Approve this ticket"),
+
     new SlashCommandBuilder()
       .setName("reject")
       .setDescription("Reject this ticket")
-      .addStringOption(o => o.setName("reason").setDescription("Reason (optional)"))
+      .addStringOption(o =>
+        o.setName("reason")
+         .setDescription("Reason (optional)")
+      )
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
@@ -90,23 +121,35 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === "setup") {
-    const cfg = {
-      voteChannelId: interaction.options.getChannel("vote_channel").id,
-      welcomeChannelId: interaction.options.getChannel("welcome_channel").id,
-      approveRoleId: interaction.options.getRole("approve_role").id,
-      approvedCategoryId: interaction.options.getChannel("approved_category").id,
-      rejectedCategoryId: interaction.options.getChannel("rejected_category").id,
-      sheetId: interaction.options.getString("sheet_id")
-    };
 
-    saveConfig(interaction.guild.id, cfg);
+  // 🔒 OWNER-ONLY SETUP
+  if (interaction.user.id !== process.env.BOT_OWNER_ID) {
+    return interaction.reply({
+      content: "❌ Only the bot owner can run the setup command.",
+      ephemeral: true
+    });
+  }
 
-    return interaction.reply(
+  const cfg = {
+    voteChannelId: interaction.options.getChannel("vote_channel").id,
+    welcomeChannelId: interaction.options.getChannel("welcome_channel").id,
+    approveRoleId: interaction.options.getRole("approve_role").id,
+    approvedCategoryId: interaction.options.getChannel("approved_category").id,
+    rejectedCategoryId: interaction.options.getChannel("rejected_category").id,
+    sheetId: interaction.options.getString("sheet_id")
+  };
+
+  saveConfig(interaction.guild.id, cfg);
+
+  return interaction.reply({
+    content:
       "✅ **Migration bot configured successfully.**\n\n" +
       "📄 Make sure your Google Sheet is shared with:\n" +
-      "`migration-manager@migration-manager-483107.iam.gserviceaccount.com` (Editor)"
-    );
-  }
+      "`migration-manager@migration-manager-483107.iam.gserviceaccount.com` (Editor)",
+    ephemeral: true
+  });
+}
+
 });
 
 // ================= WELCOME =================
@@ -114,7 +157,9 @@ client.on(Events.GuildMemberAdd, async (member) => {
   const cfg = getConfig(member.guild.id);
   if (!cfg) return;
 
-  const channel = await member.guild.channels.fetch(cfg.welcomeChannelId).catch(() => null);
+  const channel = await member.guild.channels
+    .fetch(cfg.welcomeChannelId)
+    .catch(() => null);
   if (!channel) return;
 
   channel.send(
@@ -134,10 +179,14 @@ client.on(Events.ChannelCreate, async (channel) => {
   const cfg = getConfig(channel.guild.id);
   if (!cfg) return;
 
-  const voteChannel = await channel.guild.channels.fetch(cfg.voteChannelId).catch(() => null);
+  const voteChannel = await channel.guild.channels
+    .fetch(cfg.voteChannelId)
+    .catch(() => null);
   if (!voteChannel) return;
 
-  const msg = await voteChannel.send(`🗳️ **Vote for ${channel.name.toUpperCase()}**`);
+  const msg = await voteChannel.send(
+    `🗳️ **Vote for ${channel.name.toUpperCase()}**`
+  );
   await msg.react("✅");
   await msg.react("❌");
 
@@ -180,7 +229,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   const cfg = getConfig(interaction.guild.id);
-  if (!cfg) return interaction.reply({ content: "❌ Bot not setup yet.", ephemeral: true });
+  if (!cfg) {
+    return interaction.reply({
+      content: "❌ Bot is not set up yet. Please contact the bot owner.",
+      ephemeral: true
+    });
+  }
 
   const channel = interaction.channel;
   const ticketId = channel.name;
@@ -212,6 +266,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     collector.on("collect", async (msg) => {
       await updateCell(sheetId, row, questions[step].col, msg.content);
       step++;
+
       if (step < questions.length) {
         channel.send(questions[step].q);
       } else {
@@ -239,20 +294,34 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     const row = await findRow(sheetId, ticketId);
-    if (!row) return interaction.reply({ content: "❌ Ticket not found", ephemeral: true });
+    if (!row) {
+      return interaction.reply({ content: "❌ Ticket not found.", ephemeral: true });
+    }
 
     const voteMsgId = voteMap.get(channel.id);
     if (voteMsgId) {
       const voteChannel = await channel.guild.channels.fetch(cfg.voteChannelId);
       const msg = await voteChannel.messages.fetch(voteMsgId);
+
       const yes = (msg.reactions.cache.get("✅")?.count || 1) - 1;
       const no = (msg.reactions.cache.get("❌")?.count || 1) - 1;
-      await msg.edit(`🔒 **VOTING CLOSED — ${ticketId.toUpperCase()}**\n✅ Yes: ${yes} | ❌ No: ${no}`);
+
+      await msg.edit(
+        `🔒 **VOTING CLOSED — ${ticketId.toUpperCase()}**\n` +
+        `✅ Yes: ${yes} | ❌ No: ${no}`
+      );
+
       voteMap.delete(channel.id);
     }
 
     const officer = interaction.user.username;
-    await updateCell(sheetId, row, "F", interaction.commandName === "approve" ? "APPROVED" : "REJECTED");
+
+    await updateCell(
+      sheetId,
+      row,
+      "F",
+      interaction.commandName === "approve" ? "APPROVED" : "REJECTED"
+    );
     await updateCell(sheetId, row, "G", officer);
     await updateCell(sheetId, row, "H", new Date().toLocaleString());
 
