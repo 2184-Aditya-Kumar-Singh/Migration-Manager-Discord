@@ -65,6 +65,7 @@ client.once(Events.ClientReady, async () => {
       .addRoleOption(o => o.setName("approve_role").setDescription("Migration officer role").setRequired(true))
       .addChannelOption(o => o.setName("approved_category").setDescription("Approved tickets category").setRequired(true))
       .addChannelOption(o => o.setName("rejected_category").setDescription("Rejected tickets category").setRequired(true))
+      .addChannelOption(o => o.setName("ticket_category").setDescription("Category where ticket channels are created").setRequired(true))
       .addStringOption(o =>
         o.setName("sheet_id")
          .setDescription("Google Sheet ID (share with migration-manager@migration-manager-483107.iam.gserviceaccount.com)")
@@ -143,6 +144,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       approveRoleId: interaction.options.getRole("approve_role").id,
       approvedCategoryId: interaction.options.getChannel("approved_category").id,
       rejectedCategoryId: interaction.options.getChannel("rejected_category").id,
+      ticketCategoryId: interaction.options.getChannel("ticket_category").id,
       sheetId: interaction.options.getString("sheet_id")
     };
 
