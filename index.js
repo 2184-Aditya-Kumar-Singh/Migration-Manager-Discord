@@ -57,20 +57,51 @@ const voteMap = new Map(); // channelId -> messageId
 client.once(Events.ClientReady, async () => {
   const commands = [
     new SlashCommandBuilder()
-      .setName("setup")
-      .setDescription("Setup migration bot (Owner only)")
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .addChannelOption(o => o.setName("vote_channel").setRequired(true))
-      .addChannelOption(o => o.setName("welcome_channel").setRequired(true))
-      .addChannelOption(o => o.setName("ticket_category").setRequired(true))
-      .addChannelOption(o => o.setName("approved_category").setRequired(true))
-      .addChannelOption(o => o.setName("rejected_category").setRequired(true))
-      .addRoleOption(o => o.setName("approve_role").setRequired(true))
-      .addStringOption(o =>
-        o.setName("sheet_id")
-         .setDescription("Google Sheet ID")
-         .setRequired(true)
-      ),
+  .setName("setup")
+  .setDescription("Setup migration bot for this server")
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+
+  .addChannelOption(o =>
+    o.setName("vote_channel")
+     .setDescription("Channel where voting messages will be posted")
+     .setRequired(true)
+  )
+
+  .addChannelOption(o =>
+    o.setName("welcome_channel")
+     .setDescription("Channel where welcome messages will be sent")
+     .setRequired(true)
+  )
+
+  .addChannelOption(o =>
+    o.setName("ticket_category")
+     .setDescription("Category where ticket channels are created")
+     .setRequired(true)
+  )
+
+  .addChannelOption(o =>
+    o.setName("approved_category")
+     .setDescription("Category where approved tickets are moved")
+     .setRequired(true)
+  )
+
+  .addChannelOption(o =>
+    o.setName("rejected_category")
+     .setDescription("Category where rejected tickets are moved")
+     .setRequired(true)
+  )
+
+  .addRoleOption(o =>
+    o.setName("approve_role")
+     .setDescription("Role allowed to approve or reject tickets")
+     .setRequired(true)
+  )
+
+  .addStringOption(o =>
+    o.setName("sheet_id")
+     .setDescription("Google Sheet ID (share with migration-manager@migration-manager-483107.iam.gserviceaccount.com)")
+     .setRequired(true)
+  ),
 
     new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
     new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
@@ -176,17 +207,18 @@ client.on(Events.InteractionCreate, async interaction => {
       return interaction.reply({ content: "❌ Owner only.", ephemeral: true });
 
     const cfg = {
-      voteChannelId: interaction.options.getChannel("vote_channel").id,
-      welcomeChannelId: interaction.options.getChannel("welcome_channel").id,
-      ticketCategoryId: interaction.options.getChannel("ticket_category").id,
-      approvedCategoryId: interaction.options.getChannel("approved_category").id,
-      rejectedCategoryId: interaction.options.getChannel("rejected_category").id,
-      approveRoleId: interaction.options.getRole("approve_role").id,
-      sheetId: interaction.options.getString("sheet_id"),
-      expiry: Date.now() + 30 * 24 * 60 * 60 * 1000,
-      warned: false,
-      disabled: false
-    };
+  voteChannelId: interaction.options.getChannel("vote_channel").id,
+  welcomeChannelId: interaction.options.getChannel("welcome_channel").id,
+  ticketCategoryId: interaction.options.getChannel("ticket_category").id,
+  approvedCategoryId: interaction.options.getChannel("approved_category").id,
+  rejectedCategoryId: interaction.options.getChannel("rejected_category").id,
+  approveRoleId: interaction.options.getRole("approve_role").id,
+  sheetId: interaction.options.getString("sheet_id"),
+  expiry: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  warned: false,
+  disabled: false
+};
+
 
     saveConfig(interaction.guild.id, cfg);
     return interaction.reply({ content: "✅ Setup completed.", ephemeral: true });
