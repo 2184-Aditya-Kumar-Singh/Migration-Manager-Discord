@@ -221,7 +221,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
 
     saveConfig(interaction.guild.id, cfg);
-    return interaction.reply({ content: "✅ Setup completed.", ephemeral: true });
+    return interaction.reply({ content: "✅ Setup completed.you have been subscribed for 30days", ephemeral: true });
   }
 
   /* CONTINUE */
