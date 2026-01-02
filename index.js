@@ -93,7 +93,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
   const channel = await member.guild.channels.fetch(cfg.welcomeChannelId).catch(() => null);
   if (!channel) return;
 
-  channel.send(`👑 **Welcome to the Migration Discord** 👑\n\nHello ${member}`);
+  channel.send(`👑 **Welcome to our Migration Discord** 👑\n\nHello ${member}`);
 });
 
 // ================= GOOGLE HELPERS =================
@@ -213,7 +213,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         channel.send(questions[step].q);
       } else {
         collector.stop();
-        channel.send("✅ **Details recorded. Please upload screenshots and wait for officers.**");
+        channel.send("✅ **Details recorded. Please upload screenshots of your ROK profile, Bag, Commanders/ Equipments and wait for officers.**");
       }
     });
   }
