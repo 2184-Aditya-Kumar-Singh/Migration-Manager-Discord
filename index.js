@@ -12,7 +12,7 @@ const { google } = require("googleapis");
 const fs = require("fs");
 const path = require("path");
 
-// ================= ENV =================
+// ================= BASIC =================
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GOOGLE_CREDS = process.env.GOOGLE_CREDS;
 const BOT_OWNER_ID = process.env.BOT_OWNER_ID;
@@ -36,110 +36,95 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: "v4", auth });
 
-// ================= CONFIG HELPERS =================
-function loadAllConfigs() {
+// ================= CONFIG =================
+function loadConfig() {
   if (!fs.existsSync(CONFIG_PATH)) fs.writeFileSync(CONFIG_PATH, "{}");
   return JSON.parse(fs.readFileSync(CONFIG_PATH));
 }
-
-function getConfig(guildId) {
-  return loadAllConfigs()[guildId];
-}
-
-function saveConfig(guildId, cfg) {
-  const data = loadAllConfigs();
-  data[guildId] = cfg;
+function saveConfig(data) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(data, null, 2));
 }
-
-// ================= HELPERS =================
-function isInTicketCategory(channel, cfg) {
-  return channel.parentId === cfg.ticketCategoryId;
+function getGuildConfig(guildId) {
+  return loadConfig()[guildId];
 }
 
 // ================= VOTE STORAGE =================
 const voteMap = new Map();
+
+// ================= GOOGLE HELPERS =================
+async function findRow(sheetId, ticketId) {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: "Sheet1!A:A"
+  });
+  const rows = res.data.values || [];
+  const idx = rows.findIndex(r => r[0] === ticketId);
+  return idx === -1 ? null : idx + 1;
+}
+async function createRow(sheetId, ticketId, user) {
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
+    range: "Sheet1!A:I",
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [[ticketId, "", "", "", "", "PENDING", "", "", user]]
+    }
+  });
+}
+async function updateCell(sheetId, row, col, value) {
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: `Sheet1!${col}${row}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [[value]] }
+  });
+}
 
 // ================= READY =================
 client.once(Events.ClientReady, async () => {
   const commands = [
     new SlashCommandBuilder()
       .setName("setup")
-      .setDescription("Setup migration bot for this server")
+      .setDescription("Setup migration bot")
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .addChannelOption(o => o.setName("vote_channel").setDescription("Voting channel").setRequired(true))
-      .addChannelOption(o => o.setName("welcome_channel").setDescription("Welcome channel").setRequired(true))
-      .addRoleOption(o => o.setName("approve_role").setDescription("Migration officer role").setRequired(true))
-      .addChannelOption(o => o.setName("approved_category").setDescription("Approved tickets category").setRequired(true))
-      .addChannelOption(o => o.setName("rejected_category").setDescription("Rejected tickets category").setRequired(true))
-      .addChannelOption(o => o.setName("ticket_category").setDescription("Ticket category").setRequired(true))
-      .addStringOption(o => o.setName("sheet_id").setDescription("Google Sheet ID").setRequired(true)),
+      .addChannelOption(o => o.setName("vote_channel").setRequired(true))
+      .addChannelOption(o => o.setName("welcome_channel").setRequired(true))
+      .addRoleOption(o => o.setName("approve_role").setRequired(true))
+      .addChannelOption(o => o.setName("approved_category").setRequired(true))
+      .addChannelOption(o => o.setName("rejected_category").setRequired(true))
+      .addChannelOption(o => o.setName("ticket_category").setRequired(true))
+      .addStringOption(o =>
+        o.setName("sheet_id")
+         .setDescription("Share with migration-manager@migration-manager-483107.iam.gserviceaccount.com")
+         .setRequired(true)
+      ),
 
-    new SlashCommandBuilder().setName("continue").setDescription("Extend bot usage for 30 days"),
+    new SlashCommandBuilder().setName("continue").setDescription("Renew service"),
     new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
-    new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
-    new SlashCommandBuilder().setName("reject").setDescription("Reject this ticket")
+    new SlashCommandBuilder().setName("approve").setDescription("Approve ticket"),
+    new SlashCommandBuilder().setName("reject").setDescription("Reject ticket")
+      .addStringOption(o => o.setName("reason").setDescription("Reason"))
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
   await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
 
-  console.log("✅ Migration SaaS Bot is online");
-});
-
-// ================= EXPIRY WARNING SYSTEM =================
-setInterval(async () => {
-  const configs = loadAllConfigs();
-  const now = Date.now();
-
-  for (const guildId in configs) {
-    const cfg = configs[guildId];
-    if (!cfg || cfg.warningSent) continue;
-
-    const daysLeft = Math.ceil((cfg.expiresAt - now) / (24 * 60 * 60 * 1000));
-
-    if (daysLeft <= 5 && daysLeft > 0) {
-      const guild = client.guilds.cache.get(guildId);
-      if (!guild) continue;
-
-      guild.channels.cache.forEach(channel => {
-        if (channel.isTextBased() && channel.permissionsFor(guild.members.me).has("SendMessages")) {
-          channel.send(
-            "⚠️ **Migration Bot Notice** ⚠️\n\n" +
-            "In **5 days**, this bot will stop working in this server.\n" +
-            "Please contact the bot owner to continue using the service."
-          ).catch(() => {});
-        }
-      });
-
-      cfg.warningSent = true;
-      saveConfig(guildId, cfg);
-    }
-  }
-}, 60 * 60 * 1000); // check every hour
-
-// ================= WELCOME =================
-client.on(Events.GuildMemberAdd, async (member) => {
-  const cfg = getConfig(member.guild.id);
-  if (!cfg || Date.now() > cfg.expiresAt) return;
-
-  const channel = await member.guild.channels.fetch(cfg.welcomeChannelId).catch(() => null);
-  if (!channel) return;
-
-  channel.send(`👑 **Welcome to our Migration Discord** 👑\n\nHello ${member}`);
+  console.log("✅ Migration Manager SaaS Bot Online");
 });
 
 // ================= INTERACTIONS =================
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  // ----- SETUP -----
+  const data = loadConfig();
+
+  // OWNER ONLY SETUP
   if (interaction.commandName === "setup") {
     if (interaction.user.id !== BOT_OWNER_ID) {
       return interaction.reply({ content: "❌ Only the bot owner can run setup.", ephemeral: true });
     }
 
-    const cfg = {
+    data[interaction.guild.id] = {
       voteChannelId: interaction.options.getChannel("vote_channel").id,
       welcomeChannelId: interaction.options.getChannel("welcome_channel").id,
       approveRoleId: interaction.options.getRole("approve_role").id,
@@ -148,58 +133,156 @@ client.on(Events.InteractionCreate, async (interaction) => {
       ticketCategoryId: interaction.options.getChannel("ticket_category").id,
       sheetId: interaction.options.getString("sheet_id"),
       expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-      warningSent: false
+      warned: false
     };
 
-    saveConfig(interaction.guild.id, cfg);
+    saveConfig(data);
 
     return interaction.reply({
       content:
-        "✅ **Bot setup completed.Your subscription for next 30days is active now**\n\n" +
+        "✅ **Bot setup completed.**\n\n" +
         "📄 Share your sheet with:\n" +
         "`migration-manager@migration-manager-483107.iam.gserviceaccount.com` (Editor)",
       ephemeral: true
     });
   }
 
-  const cfg = getConfig(interaction.guild.id);
-  if (!cfg) return interaction.reply({ content: "❌ Bot not set up yet.", ephemeral: true });
+  const cfg = data[interaction.guild.id];
+  if (!cfg) return interaction.reply({ content: "❌ Bot not setup yet.", ephemeral: true });
 
-  // ----- CONTINUE -----
-  if (interaction.commandName === "continue") {
-    if (interaction.user.id !== BOT_OWNER_ID) {
-      return interaction.reply({ content: "❌ Only the bot owner can use this command.", ephemeral: true });
-    }
-
-    cfg.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    cfg.warningSent = false;
-    saveConfig(interaction.guild.id, cfg);
-
-    return interaction.reply({ content: "✅ Bot access extended for 30 more days.", ephemeral: true });
+  // EXPIRY CHECK
+  if (Date.now() > cfg.expiresAt) {
+    return interaction.reply({ content: "❌ Service expired. Contact bot owner.", ephemeral: true });
   }
 
-  // ----- EXPIRY CHECK -----
-  if (Date.now() > cfg.expiresAt) {
-    return interaction.reply({
-      content:
-        "⏳ **Bot access expired for this server.**\n" +
-        "Please contact the bot owner to continue using the service.",
-      ephemeral: true
-    });
+  // CONTINUE
+  if (interaction.commandName === "continue") {
+    if (interaction.user.id !== BOT_OWNER_ID) {
+      return interaction.reply({ content: "❌ Only owner can renew.", ephemeral: true });
+    }
+    cfg.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    cfg.warned = false;
+    saveConfig(data);
+    return interaction.reply({ content: "✅ Service extended for 30 days.", ephemeral: true });
+  }
+
+  // TICKET-ONLY COMMANDS
+  const ticketCommands = ["fill-details", "approve", "reject"];
+  if (ticketCommands.includes(interaction.commandName)) {
+    if (interaction.channel.parentId !== cfg.ticketCategoryId) {
+      return interaction.reply({ content: "❌ This command can only be used inside a ticket channel.", ephemeral: true });
+    }
   }
 
   const channel = interaction.channel;
+  const ticketId = channel.name;
 
-  // ----- TICKET ONLY -----
-  const ticketOnlyCommands = ["fill-details", "approve", "reject"];
-  if (ticketOnlyCommands.includes(interaction.commandName) && !isInTicketCategory(channel, cfg)) {
-    return interaction.reply({
-      content: "❌ This command can only be used inside a ticket channel.",
-      ephemeral: true
+  // ENSURE VOTE
+  async function ensureVote() {
+    if (voteMap.has(channel.id)) return;
+    const voteChannel = await interaction.guild.channels.fetch(cfg.voteChannelId);
+    const msg = await voteChannel.send(`🗳️ **Vote for ${ticketId.toUpperCase()}**`);
+    await msg.react("✅");
+    await msg.react("❌");
+    voteMap.set(channel.id, msg.id);
+  }
+
+  // FILL DETAILS
+  if (interaction.commandName === "fill-details") {
+    await ensureVote();
+
+    let row = await findRow(cfg.sheetId, ticketId);
+    if (!row) {
+      await createRow(cfg.sheetId, ticketId, interaction.user.username);
+      row = await findRow(cfg.sheetId, ticketId);
+    }
+
+    const questions = [
+      { col: "B", q: "📝 **Please enter your in-game name**" },
+      { col: "C", q: "⚡ **What is your current power?**" },
+      { col: "D", q: "⚔️ **What are your total kill points?**" },
+      { col: "E", q: "👑 **What is your VIP level?**" }
+    ];
+
+    let step = 0;
+    await interaction.reply(questions[step].q);
+
+    const collector = channel.createMessageCollector({
+      filter: m => m.author.id === interaction.user.id,
+      time: 10 * 60 * 1000
+    });
+
+    collector.on("collect", async (msg) => {
+      await updateCell(cfg.sheetId, row, questions[step].col, msg.content);
+      step++;
+      if (step < questions.length) {
+        channel.send(questions[step].q);
+      } else {
+        collector.stop();
+        channel.send(
+"✅ **Application details recorded**\n\n📸 Please provide screenshots of:\n• Commanders\n• Equipment\n• VIP Level\n• Resources & Speedups\n• ROK Profile (ID must be visible)\n\n⏳ Our Migration Officers will review your submission and contact you."
+        );
+      }
     });
   }
 
-  interaction.reply({ content: "⚠️ Feature logic unchanged from previous version.", ephemeral: true });
+  // APPROVE / REJECT
+  if (interaction.commandName === "approve" || interaction.commandName === "reject") {
+    if (!interaction.member.roles.cache.has(cfg.approveRoleId)) {
+      return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+    }
+
+    const row = await findRow(cfg.sheetId, ticketId);
+    if (!row) return interaction.reply({ content: "❌ Ticket not found.", ephemeral: true });
+
+    const voteMsgId = voteMap.get(channel.id);
+    if (voteMsgId) {
+      const voteChannel = await interaction.guild.channels.fetch(cfg.voteChannelId);
+      const msg = await voteChannel.messages.fetch(voteMsgId);
+      const yes = (msg.reactions.cache.get("✅")?.count || 1) - 1;
+      const no = (msg.reactions.cache.get("❌")?.count || 1) - 1;
+      await msg.edit(`🔒 **VOTING CLOSED — ${ticketId.toUpperCase()}**\n✅ Yes: ${yes} | ❌ No: ${no}`);
+      voteMap.delete(channel.id);
+    }
+
+    await updateCell(cfg.sheetId, row, "F", interaction.commandName === "approve" ? "APPROVED" : "REJECTED");
+    await updateCell(cfg.sheetId, row, "G", interaction.user.username);
+    await updateCell(cfg.sheetId, row, "H", new Date().toLocaleString());
+
+    await channel.setParent(
+      interaction.commandName === "approve"
+        ? cfg.approvedCategoryId
+        : cfg.rejectedCategoryId
+    );
+
+    interaction.reply({ content: "✅ Action completed.", ephemeral: true });
+  }
 });
+
+// ================= WELCOME =================
+client.on(Events.GuildMemberAdd, async (member) => {
+  const cfg = getGuildConfig(member.guild.id);
+  if (!cfg || Date.now() > cfg.expiresAt) return;
+
+  const channel = await member.guild.channels.fetch(cfg.welcomeChannelId).catch(() => null);
+  if (channel) channel.send(`👑 **Welcome to our Migration Discord** 👑\n\nHello ${member}`);
+});
+
+// ================= 25-DAY WARNING =================
+setInterval(() => {
+  const data = loadConfig();
+  for (const guildId in data) {
+    const cfg = data[guildId];
+    if (!cfg.warned && Date.now() > cfg.expiresAt - 5 * 24 * 60 * 60 * 1000) {
+      client.guilds.fetch(guildId).then(guild => {
+        guild.channels.cache
+          .filter(c => c.isTextBased())
+          .forEach(c => c.send("⚠️ **Service will stop in 5 days. Contact owner to continue using Migration Manager.**").catch(() => {}));
+      });
+      cfg.warned = true;
+    }
+  }
+  saveConfig(data);
+}, 6 * 60 * 60 * 1000);
 
 client.login(BOT_TOKEN);
