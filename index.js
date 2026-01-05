@@ -349,7 +349,7 @@ if (interaction.commandName === "status") {
 
 
     saveConfig(interaction.guild.id, cfg);
-    return interaction.reply({ content: "✅ Setup completed.you have been subscribed for 30days", ephemeral: true });
+    return interaction.reply({ content: "✅ Setup completed.", ephemeral: true });
   }
 
   /* CONTINUE */
