@@ -178,6 +178,35 @@ client.on(Events.GuildMemberAdd, async member => {
   ch.send(msg).catch(() => {});
 });
 
+/* ================= TICKET CREATED MESSAGE ================= */
+client.on(Events.ChannelCreate, async (channel) => {
+  // Must be a guild text channel
+  if (!channel.guild || !channel.parentId) return;
+
+  const cfg = getConfig(channel.guild.id);
+  if (!cfg || cfg.disabled) return;
+
+  // Only trigger for ticket channels
+  if (channel.parentId !== cfg.ticketCategoryId) return;
+
+  try {
+    await channel.send(
+`👋 **Welcome to your migration ticket**
+
+Please begin by using the command:
+/fill-details
+
+📌 Ensure all details are accurate.
+📸 Screenshots will be requested after submission.
+
+⏳ A Migration Officer will review your application shortly.`
+    );
+  } catch (err) {
+    console.error("Failed to send ticket welcome message:", err);
+  }
+});
+
+
 /* ================= SHEET HELPERS ================= */
 async function findRow(sheetId, ticketId) {
   const res = await sheets.spreadsheets.values.get({
@@ -373,9 +402,9 @@ if (interaction.commandName === "welcome-setup") {
       voteMap.delete(channel.id);
     }
 
-    await updateCell(cfg.sheetId, row, "F", interaction.commandName === "approve" ? "APPROVED" : "REJECTED");
-    await updateCell(cfg.sheetId, row, "G", interaction.user.username);
-    await updateCell(cfg.sheetId, row, "H", new Date().toLocaleString());
+    await updateCell(cfg.sheetId, row, "G", interaction.commandName === "approve" ? "APPROVED" : "REJECTED");
+    await updateCell(cfg.sheetId, row, "H", interaction.user.username);
+    await updateCell(cfg.sheetId, row, "I", new Date().toLocaleString());
 
     await channel.setParent(
       interaction.commandName === "approve"
