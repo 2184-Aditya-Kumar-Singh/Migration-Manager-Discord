@@ -102,6 +102,15 @@ client.once(Events.ClientReady, async () => {
      .setDescription("Google Sheet ID (share with migration-manager@migration-manager-483107.iam.gserviceaccount.com)")
      .setRequired(true)
   ),
+    
+    new SlashCommandBuilder()
+  .setName("welcome-setup")
+  .setDescription("Set a custom welcome message for this server")
+  .addStringOption(o =>
+    o.setName("message")
+     .setDescription("Welcome message (use {user} for mention)")
+     .setRequired(true)
+  ),
 
     new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
     new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
@@ -201,6 +210,32 @@ async function updateCell(sheetId, row, col, value) {
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
+  /* WELCOME SETUP */
+if (interaction.commandName === "welcome-setup") {
+  const cfg = getConfig(interaction.guild.id);
+  if (!cfg || cfg.disabled) {
+    return interaction.reply({ content: "❌ Bot not active.", ephemeral: true });
+  }
+
+  if (!interaction.member.roles.cache.has(cfg.approveRoleId)) {
+    return interaction.reply({
+      content: "❌ Only migration officers can set the welcome message.",
+      ephemeral: true
+    });
+  }
+
+  const message = interaction.options.getString("message");
+
+  cfg.welcomeMessage = message;
+  saveConfig(interaction.guild.id, cfg);
+
+  return interaction.reply({
+    content: "✅ Welcome message updated successfully.",
+    ephemeral: true
+  });
+}
+
+  
   /* SETUP */
   if (interaction.commandName === "setup") {
     if (interaction.user.id !== BOT_OWNER_ID)
