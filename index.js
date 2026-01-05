@@ -120,8 +120,13 @@ client.once(Events.ClientReady, async () => {
       .addStringOption(o => o.setName("reason").setDescription("Reason")),
 
     new SlashCommandBuilder()
-      .setName("continue")
-      .setDescription("Extend bot service for this server (Owner only)")
+  .setName("continue")
+  .setDescription("Extend bot service for this server (Owner only)")
+  .addIntegerOption(o =>
+    o.setName("days")
+     .setDescription("Number of days to extend the service")
+     .setRequired(true)
+  )
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
@@ -142,21 +147,37 @@ setInterval(async () => {
     const guild = await client.guilds.fetch(guildId).catch(() => null);
     if (!guild) continue;
 
-    // 25 day warning
-    if (remaining < 5 * 24 * 60 * 60 * 1000 && !cfg.warned) {
-      cfg.warned = true;
-      saveConfig(guildId, cfg);
+    // 2-day warning
+if (
+  remaining <= 2 * 24 * 60 * 60 * 1000 &&
+  remaining > 0 &&
+  !cfg.warned &&
+  !cfg.disabled
+) {
+  cfg.warned = true;
+  saveConfig(guildId, cfg);
 
-      guild.channels.cache
-        .filter(c => c.isTextBased())
-        .forEach(c => {
-          c.send(
-            "⚠️ **Migration Manager Notice**\n\n" +
-            "This bot will stop working in **5 days**.\n" +
-            "Please contact the owner to continue using the service."
-          ).catch(() => {});
-        });
-    }
+  const roleMention = `<@&${cfg.approveRoleId}>`;
+
+  const warningMessage =
+    "⚠️ **Migration Manager Service Notice**\n\n" +
+    "⏳ This server’s migration service will **stop in 2 days**.\n\n" +
+    "📌 Please contact the bot owner or renew the service to avoid interruption.\n\n" +
+    `${roleMention}`;
+
+  // Voting channel
+  const voteChannel = guild.channels.cache.get(cfg.voteChannelId);
+  if (voteChannel?.isTextBased()) {
+    voteChannel.send(warningMessage).catch(() => {});
+  }
+
+  // Welcome channel
+  const welcomeChannel = guild.channels.cache.get(cfg.welcomeChannelId);
+  if (welcomeChannel?.isTextBased()) {
+    welcomeChannel.send(warningMessage).catch(() => {});
+  }
+}
+
 
     // Expired
     if (remaining <= 0) {
@@ -280,7 +301,7 @@ if (interaction.commandName === "welcome-setup") {
   rejectedCategoryId: interaction.options.getChannel("rejected_category").id,
   approveRoleId: interaction.options.getRole("approve_role").id,
   sheetId: interaction.options.getString("sheet_id"),
-  expiry: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  expiry: Date.now() + 7 * 24 * 60 * 60 * 1000,
   warned: false,
   disabled: false
 };
@@ -292,17 +313,36 @@ if (interaction.commandName === "welcome-setup") {
 
   /* CONTINUE */
   if (interaction.commandName === "continue") {
-    if (interaction.user.id !== BOT_OWNER_ID)
-      return interaction.reply({ content: "❌ Owner only.", ephemeral: true });
-
-    const cfg = getConfig(interaction.guild.id);
-    cfg.expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    cfg.warned = false;
-    cfg.disabled = false;
-    saveConfig(interaction.guild.id, cfg);
-
-    return interaction.reply({ content: "✅ Service extended by 30 days.", ephemeral: true });
+  if (interaction.user.id !== BOT_OWNER_ID) {
+    return interaction.reply({ content: "❌ Owner only.", ephemeral: true });
   }
+
+  const days = interaction.options.getInteger("days");
+
+  if (days <= 0) {
+    return interaction.reply({
+      content: "❌ Days must be greater than 0.",
+      ephemeral: true
+    });
+  }
+
+  const cfg = getConfig(interaction.guild.id);
+
+  const now = Date.now();
+  const base = cfg.expiry && cfg.expiry > now ? cfg.expiry : now;
+
+  cfg.expiry = base + days * 24 * 60 * 60 * 1000;
+  cfg.warned = false;      // 🔥 VERY IMPORTANT
+  cfg.disabled = false;
+
+  saveConfig(interaction.guild.id, cfg);
+
+  return interaction.reply({
+    content: `✅ Service extended by **${days} days**.`,
+    ephemeral: true
+  });
+}
+
 
   const cfg = getConfig(interaction.guild.id);
   if (!cfg || cfg.disabled)
