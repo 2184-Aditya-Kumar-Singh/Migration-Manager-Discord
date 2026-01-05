@@ -111,7 +111,7 @@ client.once(Events.ClientReady, async () => {
      .setDescription("Welcome message (use {user} for mention)")
      .setRequired(true)
   ),
-
+    new SlashCommandBuilder().setName("status").setDescription("Check migration service status for this server"),
     new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
     new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
     new SlashCommandBuilder()
@@ -283,6 +283,47 @@ if (interaction.commandName === "welcome-setup") {
 
   return interaction.reply({
     content: "✅ Welcome message updated successfully.",
+    ephemeral: true
+  });
+}
+
+/* STATUS */
+if (interaction.commandName === "status") {
+  const cfg = getConfig(interaction.guild.id);
+
+  if (!cfg) {
+    return interaction.reply({
+      content: "❌ Migration Manager is not set up on this server.",
+      ephemeral: true
+    });
+  }
+
+  const now = Date.now();
+
+  if (cfg.disabled || !cfg.expiry || cfg.expiry <= now) {
+    return interaction.reply({
+      content:
+        "🔴 **Migration Manager Status**\n\n" +
+        "❌ Service Status: **Expired**\n" +
+        "📩 Contact the bot owner to renew service.",
+      ephemeral: true
+    });
+  }
+
+  const msLeft = cfg.expiry - now;
+  const daysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
+
+  const badge =
+    msLeft <= 7 * 24 * 60 * 60 * 1000
+      ? "🆓 **Trial**"
+      : "💎 **Paid**";
+
+  return interaction.reply({
+    content:
+      "📊 **Migration Manager Status**\n\n" +
+      `🏷️ Plan: ${badge}\n` +
+      `⏳ Days Remaining: **${daysLeft} day(s)**\n` +
+      "⚙️ Service is active and running.",
     ephemeral: true
   });
 }
