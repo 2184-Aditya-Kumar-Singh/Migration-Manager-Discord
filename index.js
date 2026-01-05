@@ -191,10 +191,10 @@ async function findRow(sheetId, ticketId) {
 async function createRow(sheetId, ticketId, user) {
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: "Sheet1!A:I",
+    range: "Sheet1!A:J",
     valueInputOption: "USER_ENTERED",
     requestBody: {
-      values: [[ticketId, "", "", "", "", "PENDING", "", "", user]]
+      values: [[ticketId, "", "", "", "", "", "PENDING", "", "", user]]
     }
   });
 }
@@ -305,11 +305,28 @@ if (interaction.commandName === "welcome-setup") {
     }
 
     const qs = [
-      ["B", "📝 **Please enter your in-game name**"],
-      ["C", "⚡ **What is your current power?**"],
-      ["D", "⚔️ **What are your total kill points?**"],
-      ["E", "👑 **What is your VIP level?**"]
-    ];
+  [
+    "B",
+    "📝 **Please enter your in-game name**\n(Exact name as shown in Rise of Kingdoms)"
+  ],
+  [
+    "C",
+    "🆔 **Please enter your Governor ID**\n(You can find this in your ROK profile)"
+  ],
+  [
+    "D",
+    "⚡ **What is your current power?**\n(You may include units like M / Million)"
+  ],
+  [
+    "E",
+    "⚔️ **What are your total kill points?**\n(Enter the total shown in your profile)"
+  ],
+  [
+    "F",
+    "👑 **What is your current VIP level?**"
+  ]
+];
+
 
     let i = 0;
     await interaction.reply(qs[i][1]);
