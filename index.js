@@ -188,7 +188,7 @@ client.on(Events.ChannelCreate, async (channel) => {
 
   // Only trigger for ticket channels
   if (channel.parentId !== cfg.ticketCategoryId) return;
-
+  setTimeout(async () =>{
   try {
     await channel.send(
 `👋 **Welcome to your migration ticket**
@@ -204,6 +204,7 @@ Please begin by using the command:
   } catch (err) {
     console.error("Failed to send ticket welcome message:", err);
   }
+  }, 2500);
 });
 
 
@@ -372,7 +373,16 @@ if (interaction.commandName === "welcome-setup") {
       else {
         collector.stop();
         channel.send(
-          "✅ **Details recorded. Please upload screenshots of your ROK profile, Bag, Commanders/ Equipments and wait for officers.**"
+          `✅ **Application details recorded**
+
+📸 Please provide screenshots of:
+• Commanders  
+• Equipment  
+• VIP Level  
+• Resources & Speedups  
+• ROK Profile (ID must be visible)
+
+⏳ Our Migration Officers will review your information and get back to you shortly.` 
         );
       }
     });
