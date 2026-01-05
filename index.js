@@ -169,12 +169,13 @@ setInterval(async () => {
 /* ================= WELCOME ================= */
 client.on(Events.GuildMemberAdd, async member => {
   const cfg = getConfig(member.guild.id);
-  if (!cfg || cfg.disabled) return;
+  if (!cfg || cfg.disabled || !cfg.welcomeMessage) return;
 
   const ch = await member.guild.channels.fetch(cfg.welcomeChannelId).catch(() => null);
-  if (ch) {
-    ch.send(`👑 **Welcome to our Migration Discord** 👑\n\nHello ${member}`);
-  }
+   if (!ch) return;
+
+  const msg = cfg.welcomeMessage.replace("{user}", `<@${member.id}>`);
+  ch.send(msg).catch(() => {});
 });
 
 /* ================= SHEET HELPERS ================= */
