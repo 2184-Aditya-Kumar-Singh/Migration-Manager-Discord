@@ -109,7 +109,7 @@ client.once(Events.ClientReady, async () => {
     
     new SlashCommandBuilder()
   .setName("welcome-setup")
-  .setDescription("Set a custom welcome message for this server"),
+  .setDescription("Press Enter to open the welcome message editor"),
     new SlashCommandBuilder().setName("status").setDescription("Check migration service status for this server"),
     new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
     new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
@@ -265,7 +265,7 @@ client.on(Events.InteractionCreate, async interaction => {
 if (interaction.commandName === "welcome-setup") {
   const cfg = getConfig(interaction.guild.id);
   if (!cfg || cfg.disabled) {
-    return interaction.reply({ content: "❌ Bot not active.", ephemeral: true });
+    return interaction.reply({ content: "❌ Bot not active/setup yet.", ephemeral: true });
   }
 
   if (!interaction.member.roles.cache.has(cfg.approveRoleId)) {
@@ -300,7 +300,7 @@ if (interaction.commandName === "status") {
   if (!cfg) {
     return interaction.reply({
       content: "❌ Migration Manager is not set up on this server.",
-      ephemeral: true
+      ephemeral: false
     });
   }
 
@@ -312,7 +312,7 @@ if (interaction.commandName === "status") {
         "🔴 **Migration Manager Status**\n\n" +
         "❌ Service Status: **Expired**\n" +
         "📩 Contact the bot owner to renew service.",
-      ephemeral: true
+      ephemeral: false
     });
   }
 
@@ -330,7 +330,7 @@ if (interaction.commandName === "status") {
       `🏷️ Plan: ${badge}\n` +
       `⏳ Days Remaining: **${daysLeft} day(s)**\n` +
       "⚙️ Service is active and running.",
-    ephemeral: true
+    ephemeral: false
   });
 }
 
@@ -338,7 +338,7 @@ if (interaction.commandName === "status") {
   /* SETUP */
   if (interaction.commandName === "setup") {
     if (interaction.user.id !== BOT_OWNER_ID)
-      return interaction.reply({ content: "❌ Owner only.", ephemeral: true });
+      return interaction.reply({ content: "❌ Owner only.", ephemeral: false });
 
     const cfg = {
   voteChannelId: interaction.options.getChannel("vote_channel").id,
@@ -355,13 +355,13 @@ if (interaction.commandName === "status") {
 
 
     saveConfig(interaction.guild.id, cfg);
-    return interaction.reply({ content: "✅ Setup completed.", ephemeral: true });
+    return interaction.reply({ content: "✅ Setup completed.", ephemeral: false });
   }
 
   /* CONTINUE */
   if (interaction.commandName === "continue") {
   if (interaction.user.id !== BOT_OWNER_ID) {
-    return interaction.reply({ content: "❌ Owner only.", ephemeral: true });
+    return interaction.reply({ content: "❌ Owner only.", ephemeral: false });
   }
 
   const days = interaction.options.getInteger("days");
@@ -386,18 +386,18 @@ if (interaction.commandName === "status") {
 
   return interaction.reply({
     content: `✅ Service extended by **${days} days**.`,
-    ephemeral: true
+    ephemeral: false
   });
 }
 
 
   const cfg = getConfig(interaction.guild.id);
   if (!cfg || cfg.disabled)
-    return interaction.reply({ content: "❌ Bot inactive.", ephemeral: true });
+    return interaction.reply({ content: "❌ Bot inactive.", ephemeral: false });
 
   const channel = interaction.channel;
   if (channel.parentId !== cfg.ticketCategoryId)
-    return interaction.reply({ content: "❌ Ticket only command.", ephemeral: true });
+    return interaction.reply({ content: "❌ Ticket only command.", ephemeral: false });
 
   const ticketId = channel.name;
 
@@ -532,7 +532,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
     return interaction.reply({
       content: "✅ Welcome message updated successfully.",
-      ephemeral: true
+      ephemeral: false
     });
   }
 });
