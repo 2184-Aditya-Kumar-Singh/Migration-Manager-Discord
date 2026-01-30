@@ -360,7 +360,7 @@ if (interaction.commandName === "status") {
 `✅ **Migration bot configured successfully.**
 
 📄 Make sure your Google Sheet is shared with:
-\`migration-manager@migration-manager-483107.iam.gserviceaccount.com\``,
+\`migration-manager@migration-manager-483107.iam.gserviceaccount.com\` (Editor)`,
   ephemeral: false
 });
   }
@@ -421,7 +421,11 @@ if (interaction.commandName === "status") {
   /* FILL DETAILS */
   if (interaction.commandName === "fill-details") {
 
+  // Acknowledge Discord fast
   await interaction.deferReply({ ephemeral: true });
+
+  // Immediately close the interaction cleanly
+  await interaction.editReply({ content: "📝 Please answer the questions below." });
   await interaction.deleteReply();
 
   await ensureVote();
@@ -442,8 +446,8 @@ if (interaction.commandName === "status") {
 
   let i = 0;
 
-  // ✅ first question
-  await interaction.followUp({ content: qs[i][1] });
+  // ✅ FIRST QUESTION — channel send only
+  await channel.send(qs[i][1]);
 
   const collector = channel.createMessageCollector({
     filter: m => m.author.id === interaction.user.id,
@@ -455,10 +459,10 @@ if (interaction.commandName === "status") {
     i++;
 
     if (i < qs.length) {
-      channel.send(qs[i][1]);
+      await channel.send(qs[i][1]);
     } else {
       collector.stop();
-      channel.send(
+      await channel.send(
 `✅ **Application details recorded**
 
 📸 Please provide screenshots of:
@@ -473,6 +477,7 @@ if (interaction.commandName === "status") {
     }
   });
 }
+
 
 
   /* APPROVE / REJECT */
