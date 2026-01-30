@@ -214,7 +214,7 @@ client.on(Events.ChannelCreate, async (channel) => {
 `👋 **Welcome to your migration ticket**
 
 Please begin by using the command:
-/fill-details
+**-> /fill-details**
 
 📌 Ensure all details are accurate.
 📸 Screenshots will be requested after submission.
@@ -414,9 +414,7 @@ if (interaction.commandName === "status") {
   /* FILL DETAILS */
   if (interaction.commandName === "fill-details") {
 
-  // ✅ acknowledge immediately
-  await interaction.deferReply({ ephemeral: false });
-
+  await interaction.reply(qs[i][1]);
   await ensureVote();
 
   let row = await findRow(cfg.sheetId, ticketId);
