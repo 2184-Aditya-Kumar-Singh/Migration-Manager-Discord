@@ -421,13 +421,16 @@ if (interaction.commandName === "status") {
   /* FILL DETAILS */
   if (interaction.commandName === "fill-details") {
 
-  // Acknowledge Discord fast
-  await interaction.deferReply({ ephemeral: true });
+  const channel = interaction.channel;
+  const ticketId = channel.name;
 
-  // Immediately close the interaction cleanly
-  await interaction.editReply({ content: "📝 Please answer the questions below." });
-  await interaction.deleteReply();
+  // ✅ IMMEDIATE reply (no defer = no spinner issues)
+  await interaction.reply({
+    content: "📝 Please answer the questions below.",
+    ephemeral: true
+  });
 
+  // Optional: create vote safely
   await ensureVote();
 
   let row = await findRow(cfg.sheetId, ticketId);
@@ -436,7 +439,7 @@ if (interaction.commandName === "status") {
     row = await findRow(cfg.sheetId, ticketId);
   }
 
-  const qs = [
+  const questions = [
     ["B", "📝 **Please enter your in-game name**\n(Exact name as shown in Rise of Kingdoms)"],
     ["C", "🆔 **Please enter your Governor ID**\n(You can find this in your ROK profile)"],
     ["D", "⚡ **What is your current power?**\n(You may include units like M / Million)"],
@@ -444,25 +447,26 @@ if (interaction.commandName === "status") {
     ["F", "👑 **What is your current VIP level?**"]
   ];
 
-  let i = 0;
+  let step = 0;
 
-  // ✅ FIRST QUESTION — channel send only
-  await channel.send(qs[i][1]);
+  // ✅ FIRST QUESTION — channel message
+  await channel.send(questions[step][1]);
 
   const collector = channel.createMessageCollector({
     filter: m => m.author.id === interaction.user.id,
     time: 10 * 60 * 1000
   });
 
-  collector.on("collect", async msg => {
-    await updateCell(cfg.sheetId, row, qs[i][0], msg.content);
-    i++;
+  collector.on("collect", async (msg) => {
+    try {
+      await updateCell(cfg.sheetId, row, questions[step][0], msg.content);
+      step++;
 
-    if (i < qs.length) {
-      await channel.send(qs[i][1]);
-    } else {
-      collector.stop();
-      await channel.send(
+      if (step < questions.length) {
+        await channel.send(questions[step][1]);
+      } else {
+        collector.stop();
+        await channel.send(
 `✅ **Application details recorded**
 
 📸 Please provide screenshots of:
@@ -473,10 +477,16 @@ if (interaction.commandName === "status") {
 • ROK Profile (ID must be visible)
 
 ⏳ Our Migration Officers will review your information shortly.`
-      );
+        );
+      }
+    } catch (err) {
+      console.error("Fill-details error:", err);
+      collector.stop();
+      await channel.send("❌ An error occurred. Please contact staff.");
     }
   });
 }
+
 
 
 
