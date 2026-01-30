@@ -495,7 +495,7 @@ if (interaction.commandName === "status") {
         ? (await msg.reactions.cache.get("❌").users.fetch()).size - 1
         : 0;
 
-      await msg.edit(`🔒 **VOTING CLOSED — ${ticketId.toUpperCase()}**\n✅ Yes: ${yes} | ❌ No: ${no}`);
+      await msg.edit(`🔒 **VOTING CLOSED — ${ticketId.toUpperCase()}**\n **Yes:** ${yes} | **No:** ${no}`);
       voteMap.delete(channel.id);
     }
 
