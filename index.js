@@ -413,54 +413,46 @@ if (interaction.commandName === "status") {
 
   /* FILL DETAILS */
   if (interaction.commandName === "fill-details") {
-    await ensureVote();
 
-    let row = await findRow(cfg.sheetId, ticketId);
-    if (!row) {
-      await createRow(cfg.sheetId, ticketId, interaction.user.username);
-      row = await findRow(cfg.sheetId, ticketId);
-    }
+  // ✅ acknowledge immediately
+  await interaction.deferReply({ ephemeral: true });
 
-    const qs = [
-  [
-    "B",
-    "📝 **Please enter your in-game name**\n(Exact name as shown in Rise of Kingdoms)"
-  ],
-  [
-    "C",
-    "🆔 **Please enter your Governor ID**\n(You can find this in your ROK profile)"
-  ],
-  [
-    "D",
-    "⚡ **What is your current power?**\n(You may include units like M / Million)"
-  ],
-  [
-    "E",
-    "⚔️ **What are your total kill points?**\n(Enter the total shown in your profile)"
-  ],
-  [
-    "F",
-    "👑 **What is your current VIP level?**"
-  ]
-];
+  await ensureVote();
 
+  let row = await findRow(cfg.sheetId, ticketId);
+  if (!row) {
+    await createRow(cfg.sheetId, ticketId, interaction.user.username);
+    row = await findRow(cfg.sheetId, ticketId);
+  }
 
-    let i = 0;
-    await interaction.reply(qs[i][1]);
+  const qs = [
+    ["B", "📝 **Please enter your in-game name**\n(Exact name as shown in Rise of Kingdoms)"],
+    ["C", "🆔 **Please enter your Governor ID**\n(You can find this in your ROK profile)"],
+    ["D", "⚡ **What is your current power?**\n(You may include units like M / Million)"],
+    ["E", "⚔️ **What are your total kill points?**\n(Enter the total shown in your profile)"],
+    ["F", "👑 **What is your current VIP level?**"]
+  ];
 
-    const collector = channel.createMessageCollector({
-      filter: m => m.author.id === interaction.user.id,
-      time: 10 * 60 * 1000
-    });
+  let i = 0;
 
-    collector.on("collect", async msg => {
-      await updateCell(cfg.sheetId, row, qs[i][0], msg.content);
-      i++;
-      if (i < qs.length) channel.send(qs[i][1]);
-      else {
-        collector.stop();
-        channel.send(
-          `✅ **Application details recorded**
+  // ✅ first question
+  await interaction.followUp({ content: qs[i][1] });
+
+  const collector = channel.createMessageCollector({
+    filter: m => m.author.id === interaction.user.id,
+    time: 10 * 60 * 1000
+  });
+
+  collector.on("collect", async msg => {
+    await updateCell(cfg.sheetId, row, qs[i][0], msg.content);
+    i++;
+
+    if (i < qs.length) {
+      channel.send(qs[i][1]);
+    } else {
+      collector.stop();
+      channel.send(
+`✅ **Application details recorded**
 
 📸 Please provide screenshots of:
 • Commanders  
@@ -469,11 +461,12 @@ if (interaction.commandName === "status") {
 • Resources & Speedups  
 • ROK Profile (ID must be visible)
 
-⏳ Our Migration Officers will review your information and get back to you shortly.` 
-        );
-      }
-    });
-  }
+⏳ Our Migration Officers will review your information shortly.`
+      );
+    }
+  });
+}
+
 
   /* APPROVE / REJECT */
   if (["approve", "reject"].includes(interaction.commandName)) {
