@@ -415,7 +415,7 @@ if (interaction.commandName === "status") {
   if (interaction.commandName === "fill-details") {
 
   // ✅ acknowledge immediately
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ ephemeral: false });
 
   await ensureVote();
 
