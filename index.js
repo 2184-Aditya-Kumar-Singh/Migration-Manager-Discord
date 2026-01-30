@@ -355,7 +355,14 @@ if (interaction.commandName === "status") {
 
 
     saveConfig(interaction.guild.id, cfg);
-    return interaction.reply({ content: "✅ Setup completed.", ephemeral: false });
+   return interaction.reply({
+  content:
+`✅ **Migration bot configured successfully.**
+
+📄 Make sure your Google Sheet is shared with:
+\`migration-manager@migration-manager-483107.iam.gserviceaccount.com\``,
+  ephemeral: false
+});
   }
 
   /* CONTINUE */
@@ -414,7 +421,9 @@ if (interaction.commandName === "status") {
   /* FILL DETAILS */
   if (interaction.commandName === "fill-details") {
 
-  await interaction.reply(qs[i][1]);
+  await interaction.deferReply({ ephemeral: true });
+  await interaction.deleteReply();
+
   await ensureVote();
 
   let row = await findRow(cfg.sheetId, ticketId);
