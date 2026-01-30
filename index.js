@@ -6,7 +6,11 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder
 } = require("discord.js");
 const { google } = require("googleapis");
 const fs = require("fs");
@@ -105,12 +109,7 @@ client.once(Events.ClientReady, async () => {
     
     new SlashCommandBuilder()
   .setName("welcome-setup")
-  .setDescription("Set a custom welcome message for this server")
-  .addStringOption(o =>
-    o.setName("message")
-     .setDescription("Welcome message (use {user} for mention)")
-     .setRequired(true)
-  ),
+  .setDescription("Set a custom welcome message for this server"),
     new SlashCommandBuilder().setName("status").setDescription("Check migration service status for this server"),
     new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
     new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
@@ -262,7 +261,7 @@ async function updateCell(sheetId, row, col, value) {
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
-  /* WELCOME SETUP */
+/* WELCOME SETUP */
 if (interaction.commandName === "welcome-setup") {
   const cfg = getConfig(interaction.guild.id);
   if (!cfg || cfg.disabled) {
@@ -276,16 +275,23 @@ if (interaction.commandName === "welcome-setup") {
     });
   }
 
-  const message = interaction.options.getString("message");
+  const modal = new ModalBuilder()
+    .setCustomId("welcomeModal")
+    .setTitle("Set Welcome Message");
 
-  cfg.welcomeMessage = message;
-  saveConfig(interaction.guild.id, cfg);
+  const messageInput = new TextInputBuilder()
+    .setCustomId("welcomeMessage")
+    .setLabel("Welcome message (use {user} for mention)")
+    .setStyle(TextInputStyle.Paragraph) // ✅ MULTILINE
+    .setRequired(true);
 
-  return interaction.reply({
-    content: "✅ Welcome message updated successfully.",
-    ephemeral: true
-  });
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(messageInput)
+  );
+
+  await interaction.showModal(modal);
 }
+
 
 /* STATUS */
 if (interaction.commandName === "status") {
@@ -504,6 +510,30 @@ if (interaction.commandName === "status") {
     );
 
     interaction.reply({ content: "✅ Action completed.", ephemeral: true });
+  }
+});
+/* ================= MODAL HANDLER ================= */
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isModalSubmit()) return;
+
+  if (interaction.customId === "welcomeModal") {
+    const cfg = getConfig(interaction.guild.id);
+    if (!cfg || cfg.disabled) {
+      return interaction.reply({
+        content: "❌ Bot not active.",
+        ephemeral: true
+      });
+    }
+
+    const message = interaction.fields.getTextInputValue("welcomeMessage");
+
+    cfg.welcomeMessage = message;
+    saveConfig(interaction.guild.id, cfg);
+
+    return interaction.reply({
+      content: "✅ Welcome message updated successfully.",
+      ephemeral: true
+    });
   }
 });
 
