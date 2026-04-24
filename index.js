@@ -518,11 +518,25 @@ if (interaction.commandName === "status") {
     await updateCell(cfg.sheetId, row, "H", interaction.user.username);
     await updateCell(cfg.sheetId, row, "I", new Date().toLocaleString());
 
-    await channel.setParent(
-      interaction.commandName === "approve"
-        ? cfg.approvedCategoryId
-        : cfg.rejectedCategoryId
-    );
+   await channel.setParent(
+  interaction.commandName === "approve"
+    ? cfg.approvedCategoryId
+    : cfg.rejectedCategoryId,
+  { lockPermissions: false }
+);
+
+// keep ticket creator access
+const creator = channel.permissionOverwrites.cache
+  .filter(p => p.type === 1) // member overwrite
+  .first();
+
+if (creator) {
+  await channel.permissionOverwrites.edit(creator.id, {
+    ViewChannel: true,
+    SendMessages: true,
+    ReadMessageHistory: true
+  });
+}
 
     interaction.reply({ content: "✅ Action completed.", ephemeral: true });
   }
