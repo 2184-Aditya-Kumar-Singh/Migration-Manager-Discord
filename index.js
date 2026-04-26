@@ -444,7 +444,7 @@ if (interaction.commandName === "status") {
     ["C", "🆔 **Please enter your Governor ID**\n(You can find this in your ROK profile)"],
     ["D", "⚡ **What is your current power?**\n(You may include units like M / Million)"],
     ["E", "⚔️ **What are your total kill points?**\n(Enter the total shown in your profile)"],
-    ["F", "👑 **What is your current VIP level?**"]
+    ["F", "👑 **What kingdom number and season is your account currently in?**\n(Provide the Answer in one line)"]
   ];
 
   let step = 0;
