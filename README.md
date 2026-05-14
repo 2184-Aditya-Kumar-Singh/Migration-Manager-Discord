@@ -163,11 +163,7 @@ npm run dev
 
 ## Bot Profile
 
-Add your screenshots inside an `/assets` folder.
-
-```md
-![Migration Manager](assets/bot-preview.png)
-```
+![Migration Manager](./Screenshot%202026-05-14%20123237.png)
 
 ---
 
