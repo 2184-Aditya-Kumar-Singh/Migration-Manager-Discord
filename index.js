@@ -78,12 +78,6 @@ client.once(Events.ClientReady, async () => {
   )
 
   .addChannelOption(o =>
-    o.setName("ticket_category")
-     .setDescription("Category where ticket channels are created")
-     .setRequired(true)
-  )
-
-  .addChannelOption(o =>
     o.setName("approved_category")
      .setDescription("Category where approved tickets are moved")
      .setRequired(true)
@@ -207,7 +201,7 @@ client.on(Events.ChannelCreate, async (channel) => {
   if (!cfg || cfg.disabled) return;
 
   // Only trigger for ticket channels
-  if (channel.parentId !== cfg.ticketCategoryId) return;
+  if (!channel.name.startsWith("ticket-")) return;
   setTimeout(async () =>{
   try {
     await channel.send(
@@ -343,7 +337,6 @@ if (interaction.commandName === "status") {
     const cfg = {
   voteChannelId: interaction.options.getChannel("vote_channel").id,
   welcomeChannelId: interaction.options.getChannel("welcome_channel").id,
-  ticketCategoryId: interaction.options.getChannel("ticket_category").id,
   approvedCategoryId: interaction.options.getChannel("approved_category").id,
   rejectedCategoryId: interaction.options.getChannel("rejected_category").id,
   approveRoleId: interaction.options.getRole("approve_role").id,
@@ -403,8 +396,8 @@ if (interaction.commandName === "status") {
     return interaction.reply({ content: "❌ Bot inactive.", ephemeral: false });
 
   const channel = interaction.channel;
-  if (channel.parentId !== cfg.ticketCategoryId)
-    return interaction.reply({ content: "❌ Ticket only command.", ephemeral: false });
+  if (!channel.name.startsWith("ticket-"))
+  return interaction.reply({ content: "❌ Ticket only command.", ephemeral: false });
 
   const ticketId = channel.name;
 
