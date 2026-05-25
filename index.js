@@ -194,14 +194,15 @@ client.on(Events.GuildMemberAdd, async member => {
 
 /* ================= TICKET CREATED MESSAGE ================= */
 client.on(Events.ChannelCreate, async (channel) => {
-  // Must be a guild text channel
-  if (!channel.guild || !channel.parentId) return;
+
+  if (!channel.guild) return;
 
   const cfg = getConfig(channel.guild.id);
   if (!cfg || cfg.disabled) return;
 
-  // Only trigger for ticket channels
+  // Detect ticket channels by name instead of category
   if (!channel.name.startsWith("ticket-")) return;
+
   setTimeout(async () =>{
   try {
     await channel.send(
