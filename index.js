@@ -15,7 +15,13 @@ const {
 const { google } = require("googleapis");
 const fs = require("fs");
 const path = require("path");
+process.on("unhandledRejection", err => {
+  console.error("UNHANDLED REJECTION:", err);
+});
 
+process.on("uncaughtException", err => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
 /* ================= BASIC ================= */
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GOOGLE_CREDS = process.env.GOOGLE_CREDS;
@@ -521,15 +527,25 @@ if (interaction.commandName === "status") {
 
 // keep ticket creator access
 const creator = channel.permissionOverwrites.cache
-  .filter(p => p.type === 1) // member overwrite
+  .filter(p => p.type === 1)
   .first();
 
 if (creator) {
-  await channel.permissionOverwrites.edit(creator.id, {
-    ViewChannel: true,
-    SendMessages: true,
-    ReadMessageHistory: true
-  });
+  try {
+    const member = await interaction.guild.members
+      .fetch(creator.id)
+      .catch(() => null);
+
+    if (member) {
+      await channel.permissionOverwrites.edit(member, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true
+      });
+    }
+  } catch (err) {
+    console.error("Permission overwrite error:", err);
+  }
 }
 
     interaction.reply({ content: "✅ Action completed.", ephemeral: true });
