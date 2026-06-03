@@ -493,7 +493,6 @@ if (interaction.commandName === "status") {
   /* APPROVE / REJECT */
   if (["approve", "reject"].includes(interaction.commandName)) {
 
-  await interaction.deferReply({ ephemeral: true });
     if (!interaction.member.roles.cache.has(cfg.approveRoleId))
       return interaction.reply({ content: "❌ No permission.", ephemeral: true });
 
