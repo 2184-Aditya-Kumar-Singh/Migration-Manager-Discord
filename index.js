@@ -257,7 +257,19 @@ async function updateCell(sheetId, row, col, value) {
     requestBody: { values: [[value]] }
   });
 }
+async function getApplicantId(sheetId, row) {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `Sheet1!J${row}`
+  });
 
+  const value = res.data.values?.[0]?.[0];
+
+  if (!value) return null;
+
+  const parts = value.split("|");
+  return parts[1] || null;
+}
 /* ================= INTERACTIONS ================= */
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
@@ -435,7 +447,11 @@ if (interaction.commandName === "status") {
 
   let row = await findRow(cfg.sheetId, ticketId);
   if (!row) {
-    await createRow(cfg.sheetId, ticketId, interaction.user.username);
+    await createRow(
+  cfg.sheetId,
+  ticketId,
+  `${interaction.user.username}|${interaction.user.id}`
+);
     row = await findRow(cfg.sheetId, ticketId);
   }
 
@@ -498,6 +514,7 @@ if (interaction.commandName === "status") {
 
     const row = await findRow(cfg.sheetId, ticketId);
     if (!row) return interaction.reply({ content: "❌ Ticket not found.", ephemeral: true });
+    const applicantId = await getApplicantId(cfg.sheetId, row);
 
     const msgId = voteMap.get(channel.id);
     if (msgId) {
@@ -519,26 +536,31 @@ if (interaction.commandName === "status") {
     await updateCell(cfg.sheetId, row, "H", interaction.user.username);
     await updateCell(cfg.sheetId, row, "I", new Date().toLocaleString());
 
-   await channel.setParent(
-  interaction.commandName === "approve"
-    ? cfg.approvedCategoryId
-    : cfg.rejectedCategoryId,
-  { lockPermissions: false }
-);
+   try {
+  await channel.setParent(
+    interaction.commandName === "approve"
+      ? cfg.approvedCategoryId
+      : cfg.rejectedCategoryId,
+    { lockPermissions: false }
+  );
+} catch (err) {
+  console.error("Failed to move ticket:", err);
+
+  return interaction.followUp({
+  content: "❌ Target category is full (50 channels).",
+  ephemeral: true
+});
+}
 
 // keep ticket creator access
-const creator = channel.permissionOverwrites.cache
-  .filter(p => p.type === 1)
-  .first();
-
-if (creator) {
+if (applicantId) {
   try {
     const member = await interaction.guild.members
-      .fetch(creator.id)
+      .fetch(applicantId)
       .catch(() => null);
 
     if (member) {
-      await channel.permissionOverwrites.edit(member, {
+      await channel.permissionOverwrites.edit(member.id, {
         ViewChannel: true,
         SendMessages: true,
         ReadMessageHistory: true
@@ -548,14 +570,14 @@ if (creator) {
     console.error("Permission overwrite error:", err);
   }
 }
-    if (creator) {
+    if (applicantId) {
   if (interaction.commandName === "approve") {
     await channel.send(
-      `🎉 Hello <@${creator.id}>, We’ve reviewed your application, and your account meets our requirements. Welcome to the team!`
+      `🎉 Hello <@${applicantId}>, We’ve reviewed your application, and your account meets our requirements. Welcome to the team!`
     );
   } else {
     await channel.send(
-      `❌ Hello <@${creator.id}>, we have reviewed your application, but unfortunately your account does not meet our current migration requirements.\n\nThank you for applying and for your interest in joining our kingdom. We appreciate the time you took to submit your application and wish you the very best in your future adventures.`
+      `❌ Hello <@${applicantId}>, we have reviewed your application, but unfortunately your account does not meet our current migration requirements.\n\nThank you for applying and for your interest in joining our kingdom. We appreciate the time you took to submit your application and wish you the very best in your future adventures.`
     );
   }
 }
