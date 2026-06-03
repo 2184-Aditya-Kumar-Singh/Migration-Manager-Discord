@@ -508,12 +508,12 @@ if (interaction.commandName === "status") {
 
   /* APPROVE / REJECT */
   if (["approve", "reject"].includes(interaction.commandName)) {
-
+    await interaction.deferReply({ ephemeral: true });
     if (!interaction.member.roles.cache.has(cfg.approveRoleId))
-      return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+      return interaction.editReply({ content: "❌ No permission." });
 
     const row = await findRow(cfg.sheetId, ticketId);
-    if (!row) return interaction.reply({ content: "❌ Ticket not found.", ephemeral: true });
+    if (!row) return interaction.editReply({ content: "❌ Ticket not found." });
     const applicantId = await getApplicantId(cfg.sheetId, row);
 
     const msgId = voteMap.get(channel.id);
@@ -547,7 +547,8 @@ if (interaction.commandName === "status") {
   console.error("Failed to move ticket:", err);
 
   return interaction.followUp({
-  content: "❌ Target category is full (50 channels).",
+  content:
+    "❌ Target category is full (50 channels). Create a new Approved/Rejected category or remove old tickets.",
   ephemeral: true
 });
 }
@@ -582,7 +583,9 @@ if (applicantId) {
   }
 }
 
-    interaction.reply({ content: "✅ Action completed.", ephemeral: true });
+    await interaction.editReply({
+  content: "✅ Action completed."
+});
   }
 });
 /* ================= MODAL HANDLER ================= */
