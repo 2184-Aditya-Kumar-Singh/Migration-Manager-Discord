@@ -492,6 +492,8 @@ if (interaction.commandName === "status") {
 
   /* APPROVE / REJECT */
   if (["approve", "reject"].includes(interaction.commandName)) {
+
+  await interaction.deferReply({ ephemeral: true });
     if (!interaction.member.roles.cache.has(cfg.approveRoleId))
       return interaction.reply({ content: "❌ No permission.", ephemeral: true });
 
@@ -545,6 +547,17 @@ if (creator) {
     }
   } catch (err) {
     console.error("Permission overwrite error:", err);
+  }
+}
+    if (creator) {
+  if (interaction.commandName === "approve") {
+    await channel.send(
+      `🎉 Hello <@${creator.id}>, We’ve reviewed your application, and your account meets our requirements. Welcome to the team!`
+    );
+  } else {
+    await channel.send(
+      `❌ Hello <@${creator.id}>, we have reviewed your application, but unfortunately your account does not meet our current migration requirements.\n\nThank you for applying and for your interest in joining our kingdom. We appreciate the time you took to submit your application and wish you the very best in your future adventures.`
+    );
   }
 }
 
