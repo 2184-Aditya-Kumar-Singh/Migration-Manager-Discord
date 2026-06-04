@@ -571,16 +571,19 @@ if (applicantId) {
     console.error("Permission overwrite error:", err);
   }
 }
-    if (applicantId) {
-  if (interaction.commandName === "approve") {
-    await channel.send(
-      `🎉 Hello <@${applicantId}>, We’ve reviewed your application, and your account meets our requirements. Welcome to the team!`
-    );
-  } else {
-    await channel.send(
-      `❌ Hello <@${applicantId}>, we have reviewed your application, but unfortunately your account does not meet our current migration requirements.\n\nThank you for applying and for your interest in joining our kingdom. We appreciate the time you took to submit your application and wish you the very best in your future adventures.`
-    );
-  }
+   const target =
+  applicantId
+    ? `<@${applicantId}>`
+    : "Applicant";
+
+if (interaction.commandName === "approve") {
+  await channel.send(
+    `🎉 Hello ${target}, We’ve reviewed your application, and your account meets our requirements. Welcome to the team!`
+  );
+} else {
+  await channel.send(
+    `❌ Hello ${target}, we have reviewed your application, but unfortunately your account does not meet our current migration requirements.\n\nThank you for applying and for your interest in joining our kingdom. We appreciate the time you took to submit your application and wish you the very best in your future adventures.`
+  );
 }
 
     await interaction.editReply({
