@@ -114,6 +114,9 @@ client.once(Events.ClientReady, async () => {
     new SlashCommandBuilder().setName("fill-details").setDescription("Fill migration details"),
     new SlashCommandBuilder().setName("approve").setDescription("Approve this ticket"),
     new SlashCommandBuilder()
+  .setName("announce")
+  .setDescription("Send announcement to all approved tickets"),
+    new SlashCommandBuilder()
       .setName("reject")
       .setDescription("Reject this ticket")
       .addStringOption(o => o.setName("reason").setDescription("Reason")),
@@ -305,7 +308,41 @@ if (interaction.commandName === "welcome-setup") {
   await interaction.showModal(modal);
 }
 
+/* ANNOUNCE */
+if (interaction.commandName === "announce") {
 
+  const cfg = getConfig(interaction.guild.id);
+
+  if (!cfg || cfg.disabled) {
+    return interaction.reply({
+      content: "❌ Bot inactive.",
+      ephemeral: true
+    });
+  }
+
+  if (!interaction.member.roles.cache.has(cfg.approveRoleId)) {
+    return interaction.reply({
+      content: "❌ Only migration officers can use this.",
+      ephemeral: true
+    });
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId("announceModal")
+    .setTitle("Send Announcement");
+
+  const messageInput = new TextInputBuilder()
+    .setCustomId("announcement")
+    .setLabel("Announcement Message")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(messageInput)
+  );
+
+  return interaction.showModal(modal);
+}
 /* STATUS */
 if (interaction.commandName === "status") {
   const cfg = getConfig(interaction.guild.id);
@@ -614,6 +651,83 @@ client.on(Events.InteractionCreate, async interaction => {
       ephemeral: false
     });
   }
+  if (interaction.customId === "announceModal") {
+
+  const cfg = getConfig(interaction.guild.id);
+
+  if (!cfg || cfg.disabled) {
+    return interaction.reply({
+      content: "❌ Bot inactive.",
+      ephemeral: true
+    });
+  }
+
+  const announcement =
+    interaction.fields.getTextInputValue("announcement");
+
+  await interaction.reply({
+    content: "📢 Sending announcement...",
+    ephemeral: true
+  });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: cfg.sheetId,
+    range: "Sheet1!A:J"
+  });
+
+  const rows = res.data.values || [];
+
+  let sent = 0;
+  let skipped = 0;
+
+  const approvedTickets = rows.filter(
+    row => row[6] === "APPROVED"
+  );
+
+  for (const row of approvedTickets) {
+    try {
+
+      const ticketId = row[0];
+
+      const channel = interaction.guild.channels.cache.find(
+        c => c.name === ticketId
+      );
+
+      if (!channel) {
+        skipped++;
+        continue;
+      }
+
+      const value = row[9]; // Column J
+
+let target = "Applicant";
+
+if (value && value.includes("|")) {
+  target = `<@${value.split("|")[1]}>`;
+}
+
+await channel.send(
+  `📢 **Kingdom Announcement**
+
+${target}
+
+${announcement}`
+);
+
+      sent++;
+
+    } catch (err) {
+      console.error(err);
+      skipped++;
+    }
+  }
+
+  await interaction.followUp({
+    content:
+      `✅ Announcement completed.\n\n📨 Sent: ${sent}\n⏭️ Skipped: ${skipped}`,
+    ephemeral: true
+  });
+}
 });
 
 client.login(BOT_TOKEN);
